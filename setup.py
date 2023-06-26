@@ -62,7 +62,10 @@ packages = [
     'discord.ui',
     'discord.webhook',
     'discord.ext.commands',
+    'discord.sinks',
+    'discord.commands',
     'discord.ext.tasks',
+    'discord.ext.pages',
 ]
 
 setup(

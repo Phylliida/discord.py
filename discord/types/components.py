@@ -1,7 +1,8 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-present Rapptz
+Copyright (c) 2015-2021 Rapptz
+Copyright (c) 2021-present Pycord Development
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -25,86 +26,69 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from typing import List, Literal, TypedDict, Union
-from typing_extensions import NotRequired
 
 from .emoji import PartialEmoji
-from .channel import ChannelType
 
 ComponentType = Literal[1, 2, 3, 4]
 ButtonStyle = Literal[1, 2, 3, 4, 5]
-TextStyle = Literal[1, 2]
+InputTextStyle = Literal[1, 2]
 
 
 class ActionRow(TypedDict):
     type: Literal[1]
-    components: List[ActionRowChildComponent]
+    components: List[Component]
 
 
-class ButtonComponent(TypedDict):
+class _ButtonComponentOptional(TypedDict, total=False):
+    custom_id: str
+    url: str
+    disabled: bool
+    emoji: PartialEmoji
+    label: str
+
+
+class ButtonComponent(_ButtonComponentOptional):
     type: Literal[2]
     style: ButtonStyle
-    custom_id: NotRequired[str]
-    url: NotRequired[str]
-    disabled: NotRequired[bool]
-    emoji: NotRequired[PartialEmoji]
-    label: NotRequired[str]
 
 
-class SelectOption(TypedDict):
+class _InputTextComponentOptional(TypedDict, total=False):
+    min_length: int
+    max_length: int
+    required: bool
+    placeholder: str
+    value: str
+
+
+class InputText(_InputTextComponentOptional):
+    type: Literal[4]
+    style: InputTextStyle
+    custom_id: str
+    label: str
+
+
+class _SelectMenuOptional(TypedDict, total=False):
+    placeholder: str
+    min_values: int
+    max_values: int
+    disabled: bool
+
+
+class _SelectOptionsOptional(TypedDict, total=False):
+    description: str
+    emoji: PartialEmoji
+
+
+class SelectOption(_SelectOptionsOptional):
     label: str
     value: str
     default: bool
-    description: NotRequired[str]
-    emoji: NotRequired[PartialEmoji]
 
 
-class SelectComponent(TypedDict):
-    custom_id: str
-    placeholder: NotRequired[str]
-    min_values: NotRequired[int]
-    max_values: NotRequired[int]
-    disabled: NotRequired[bool]
-
-
-class StringSelectComponent(SelectComponent):
+class SelectMenu(_SelectMenuOptional):
     type: Literal[3]
-    options: NotRequired[List[SelectOption]]
-
-
-class UserSelectComponent(SelectComponent):
-    type: Literal[5]
-
-
-class RoleSelectComponent(SelectComponent):
-    type: Literal[6]
-
-
-class MentionableSelectComponent(SelectComponent):
-    type: Literal[7]
-
-
-class ChannelSelectComponent(SelectComponent):
-    type: Literal[8]
-    channel_types: NotRequired[List[ChannelType]]
-
-
-class TextInput(TypedDict):
-    type: Literal[4]
     custom_id: str
-    style: TextStyle
-    label: str
-    placeholder: NotRequired[str]
-    value: NotRequired[str]
-    required: NotRequired[bool]
-    min_length: NotRequired[int]
-    max_length: NotRequired[int]
+    options: List[SelectOption]
 
 
-class SelectMenu(SelectComponent):
-    type: Literal[3, 5, 6, 7, 8]
-    options: NotRequired[List[SelectOption]]
-    channel_types: NotRequired[List[ChannelType]]
-
-
-ActionRowChildComponent = Union[ButtonComponent, SelectMenu, TextInput]
-Component = Union[ActionRow, ActionRowChildComponent]
+Component = Union[ActionRow, ButtonComponent, SelectMenu, InputText]

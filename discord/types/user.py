@@ -1,7 +1,8 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-present Rapptz
+Copyright (c) 2015-2021 Rapptz
+Copyright (c) 2021-present Pycord Development
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -22,8 +23,9 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from .snowflake import Snowflake
 from typing import Literal, Optional, TypedDict
+
+from .snowflake import Snowflake
 
 
 class PartialUser(TypedDict):
@@ -31,7 +33,6 @@ class PartialUser(TypedDict):
     username: str
     discriminator: str
     avatar: Optional[str]
-    global_name: Optional[str]
 
 
 PremiumType = Literal[0, 1, 2]
@@ -41,7 +42,7 @@ class User(PartialUser, total=False):
     bot: bool
     system: bool
     mfa_enabled: bool
-    locale: str
+    local: str
     verified: bool
     email: Optional[str]
     flags: int

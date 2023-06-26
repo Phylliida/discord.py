@@ -1,7 +1,8 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-present Rapptz
+Copyright (c) 2015-2021 Rapptz
+Copyright (c) 2021-present Pycord Development
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -24,18 +25,17 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, TypeVar
 
 import discord.abc
+
 from .asset import Asset
 from .colour import Colour
 from .enums import DefaultAvatar
 from .flags import PublicUserFlags
-from .utils import snowflake_time, _bytes_to_base64_data, MISSING
+from .utils import MISSING, _bytes_to_base64_data, snowflake_time
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-
     from datetime import datetime
 
     from .channel import DMChannel
@@ -43,16 +43,15 @@ if TYPE_CHECKING:
     from .message import Message
     from .state import ConnectionState
     from .types.channel import DMChannel as DMChannelPayload
-    from .types.user import (
-        PartialUser as PartialUserPayload,
-        User as UserPayload,
-    )
+    from .types.user import User as UserPayload
 
 
 __all__ = (
-    'User',
-    'ClientUser',
+    "User",
+    "ClientUser",
 )
+
+BU = TypeVar("BU", bound="BaseUser")
 
 
 class _UserTag:
@@ -62,24 +61,22 @@ class _UserTag:
 
 class BaseUser(_UserTag):
     __slots__ = (
-        'name',
-        'id',
-        'discriminator',
-        'global_name',
-        '_avatar',
-        '_banner',
-        '_accent_colour',
-        'bot',
-        'system',
-        '_public_flags',
-        '_state',
+        "name",
+        "id",
+        "discriminator",
+        "_avatar",
+        "_banner",
+        "_accent_colour",
+        "bot",
+        "system",
+        "_public_flags",
+        "_state",
     )
 
     if TYPE_CHECKING:
         name: str
         id: int
         discriminator: str
-        global_name: Optional[str]
         bot: bool
         system: bool
         _state: ConnectionState
@@ -88,50 +85,46 @@ class BaseUser(_UserTag):
         _accent_colour: Optional[int]
         _public_flags: int
 
-    def __init__(self, *, state: ConnectionState, data: Union[UserPayload, PartialUserPayload]) -> None:
+    def __init__(self, *, state: ConnectionState, data: UserPayload) -> None:
         self._state = state
         self._update(data)
 
     def __repr__(self) -> str:
         return (
-            f"<BaseUser id={self.id} name={self.name!r} global_name={self.global_name!r}"
+            f"<BaseUser id={self.id} name={self.name!r} discriminator={self.discriminator!r}"
             f" bot={self.bot} system={self.system}>"
         )
 
     def __str__(self) -> str:
-        if self.discriminator == '0':
-            return self.name
-        return f'{self.name}#{self.discriminator}'
+        return f"{self.name}#{self.discriminator}"
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, _UserTag) and other.id == self.id
 
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
     def __hash__(self) -> int:
         return self.id >> 22
 
-    def _update(self, data: Union[UserPayload, PartialUserPayload]) -> None:
-        self.name = data['username']
-        self.id = int(data['id'])
-        self.discriminator = data['discriminator']
-        self.global_name = data.get('global_name')
-        self._avatar = data['avatar']
-        self._banner = data.get('banner', None)
-        self._accent_colour = data.get('accent_color', None)
-        self._public_flags = data.get('public_flags', 0)
-        self.bot = data.get('bot', False)
-        self.system = data.get('system', False)
+    def _update(self, data: UserPayload) -> None:
+        self.name = data["username"]
+        self.id = int(data["id"])
+        self.discriminator = data["discriminator"]
+        self._avatar = data["avatar"]
+        self._banner = data.get("banner", None)
+        self._accent_colour = data.get("accent_color", None)
+        self._public_flags = data.get("public_flags", 0)
+        self.bot = data.get("bot", False)
+        self.system = data.get("system", False)
 
     @classmethod
-    def _copy(cls, user: Self) -> Self:
+    def _copy(cls: Type[BU], user: BU) -> BU:
         self = cls.__new__(cls)  # bypass __init__
 
         self.name = user.name
         self.id = user.id
         self.discriminator = user.discriminator
-        self.global_name = user.global_name
         self._avatar = user._avatar
         self._banner = user._banner
         self._accent_colour = user._accent_colour
@@ -143,12 +136,11 @@ class BaseUser(_UserTag):
 
     def _to_minimal_user_json(self) -> Dict[str, Any]:
         return {
-            'username': self.name,
-            'id': self.id,
-            'avatar': self._avatar,
-            'discriminator': self.discriminator,
-            'global_name': self.global_name,
-            'bot': self.bot,
+            "username": self.name,
+            "id": self.id,
+            "avatar": self._avatar,
+            "discriminator": self.discriminator,
+            "bot": self.bot,
         }
 
     @property
@@ -160,7 +152,7 @@ class BaseUser(_UserTag):
     def avatar(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Returns an :class:`Asset` for the avatar the user has.
 
-        If the user has not uploaded a global avatar, ``None`` is returned.
+        If the user does not have a traditional avatar, ``None`` is returned.
         If you want the avatar that a user has displayed, consider :attr:`display_avatar`.
         """
         if self._avatar is not None:
@@ -169,13 +161,8 @@ class BaseUser(_UserTag):
 
     @property
     def default_avatar(self) -> Asset:
-        """:class:`Asset`: Returns the default avatar for a given user."""
-        if self.discriminator == '0':
-            avatar_id = (self.id >> 22) % len(DefaultAvatar)
-        else:
-            avatar_id = int(self.discriminator) % 5
-
-        return Asset._from_default_avatar(self._state, avatar_id)
+        """:class:`Asset`: Returns the default avatar for a given user. This is calculated by the user's discriminator."""
+        return Asset._from_default_avatar(self._state, int(self.discriminator) % len(DefaultAvatar))
 
     @property
     def display_avatar(self) -> Asset:
@@ -205,9 +192,6 @@ class BaseUser(_UserTag):
     def accent_colour(self) -> Optional[Colour]:
         """Optional[:class:`Colour`]: Returns the user's accent colour, if applicable.
 
-        A user's accent colour is only shown if they do not have a banner.
-        This will only be available if the user explicitly sets a colour.
-
         There is an alias for this named :attr:`accent_color`.
 
         .. versionadded:: 2.0
@@ -223,9 +207,6 @@ class BaseUser(_UserTag):
     @property
     def accent_color(self) -> Optional[Colour]:
         """Optional[:class:`Colour`]: Returns the user's accent color, if applicable.
-
-        A user's accent color is only shown if they do not have a banner.
-        This will only be available if the user explicitly sets a color.
 
         There is an alias for this named :attr:`accent_colour`.
 
@@ -258,7 +239,7 @@ class BaseUser(_UserTag):
     @property
     def mention(self) -> str:
         """:class:`str`: Returns a string that allows you to mention the given user."""
-        return f'<@{self.id}>'
+        return f"<@{self.id}>"
 
     @property
     def created_at(self) -> datetime:
@@ -272,12 +253,10 @@ class BaseUser(_UserTag):
     def display_name(self) -> str:
         """:class:`str`: Returns the user's display name.
 
-        For regular users this is just their global name or their username,
-        but if they have a guild specific nickname then that
+        For regular users this is just their username, but
+        if they have a guild specific nickname then that
         is returned instead.
         """
-        if self.global_name:
-            return self.global_name
         return self.name
 
     def mentioned_in(self, message: Message) -> bool:
@@ -319,7 +298,7 @@ class ClientUser(BaseUser):
 
         .. describe:: str(x)
 
-            Returns the user's handle (e.g. ``name`` or ``name#discriminator``).
+            Returns the user's name with discriminator.
 
     Attributes
     -----------
@@ -328,11 +307,7 @@ class ClientUser(BaseUser):
     id: :class:`int`
         The user's unique ID.
     discriminator: :class:`str`
-        The user's discriminator. This is a legacy concept that is no longer used.
-    global_name: Optional[:class:`str`]
-        The user's global nickname, taking precedence over the username in display.
-
-        .. versionadded:: 2.3
+        The user's discriminator. This is given when the username has conflicts.
     bot: :class:`bool`
         Specifies if the user is a bot account.
     system: :class:`bool`
@@ -348,7 +323,7 @@ class ClientUser(BaseUser):
         Specifies if the user has MFA turned on and working.
     """
 
-    __slots__ = ('locale', '_flags', 'verified', 'mfa_enabled', '__weakref__')
+    __slots__ = ("locale", "_flags", "verified", "mfa_enabled", "__weakref__")
 
     if TYPE_CHECKING:
         verified: bool
@@ -361,19 +336,19 @@ class ClientUser(BaseUser):
 
     def __repr__(self) -> str:
         return (
-            f'<ClientUser id={self.id} name={self.name!r} global_name={self.global_name!r}'
-            f' bot={self.bot} verified={self.verified} mfa_enabled={self.mfa_enabled}>'
+            f"<ClientUser id={self.id} name={self.name!r} discriminator={self.discriminator!r}"
+            f" bot={self.bot} verified={self.verified} mfa_enabled={self.mfa_enabled}>"
         )
 
     def _update(self, data: UserPayload) -> None:
         super()._update(data)
         # There's actually an Optional[str] phone field as well but I won't use it
-        self.verified = data.get('verified', False)
-        self.locale = data.get('locale')
-        self._flags = data.get('flags', 0)
-        self.mfa_enabled = data.get('mfa_enabled', False)
+        self.verified = data.get("verified", False)
+        self.locale = data.get("locale")
+        self._flags = data.get("flags", 0)
+        self.mfa_enabled = data.get("mfa_enabled", False)
 
-    async def edit(self, *, username: str = MISSING, avatar: Optional[bytes] = MISSING) -> ClientUser:
+    async def edit(self, *, username: str = MISSING, avatar: bytes = MISSING) -> ClientUser:
         """|coro|
 
         Edits the current profile of the client.
@@ -390,15 +365,11 @@ class ClientUser(BaseUser):
         .. versionchanged:: 2.0
             The edit is no longer in-place, instead the newly edited client user is returned.
 
-        .. versionchanged:: 2.0
-            This function will now raise :exc:`ValueError` instead of
-            ``InvalidArgument``.
-
         Parameters
         -----------
         username: :class:`str`
             The new username you wish to change to.
-        avatar: Optional[:class:`bytes`]
+        avatar: :class:`bytes`
             A :term:`py:bytes-like object` representing the image to upload.
             Could be ``None`` to denote no avatar.
 
@@ -406,7 +377,7 @@ class ClientUser(BaseUser):
         ------
         HTTPException
             Editing your profile failed.
-        ValueError
+        InvalidArgument
             Wrong image format passed for ``avatar``.
 
         Returns
@@ -416,28 +387,13 @@ class ClientUser(BaseUser):
         """
         payload: Dict[str, Any] = {}
         if username is not MISSING:
-            payload['username'] = username
+            payload["username"] = username
 
         if avatar is not MISSING:
-            if avatar is not None:
-                payload['avatar'] = _bytes_to_base64_data(avatar)
-            else:
-                payload['avatar'] = None
+            payload["avatar"] = _bytes_to_base64_data(avatar)
 
         data: UserPayload = await self._state.http.edit_profile(payload)
         return ClientUser(state=self._state, data=data)
-
-    @property
-    def mutual_guilds(self) -> List[Guild]:
-        """List[:class:`Guild`]: The guilds that the user shares with the client.
-
-        .. note::
-
-            This will only return mutual guilds within the client's internal cache.
-
-        .. versionadded:: 1.7
-        """
-        return list(self._state.guilds)
 
 
 class User(BaseUser, discord.abc.Messageable):
@@ -459,7 +415,7 @@ class User(BaseUser, discord.abc.Messageable):
 
         .. describe:: str(x)
 
-            Returns the user's handle (e.g. ``name`` or ``name#discriminator``).
+            Returns the user's name with discriminator.
 
     Attributes
     -----------
@@ -468,21 +424,34 @@ class User(BaseUser, discord.abc.Messageable):
     id: :class:`int`
         The user's unique ID.
     discriminator: :class:`str`
-        The user's discriminator. This is a legacy concept that is no longer used.
-    global_name: Optional[:class:`str`]
-        The user's global nickname, taking precedence over the username in display.
-
-        .. versionadded:: 2.3
+        The user's discriminator. This is given when the username has conflicts.
     bot: :class:`bool`
         Specifies if the user is a bot account.
     system: :class:`bool`
         Specifies if the user is a system user (i.e. represents Discord officially).
     """
 
-    __slots__ = ('__weakref__',)
+    __slots__ = ("_stored",)
+
+    def __init__(self, *, state: ConnectionState, data: UserPayload) -> None:
+        super().__init__(state=state, data=data)
+        self._stored: bool = False
 
     def __repr__(self) -> str:
-        return f'<User id={self.id} name={self.name!r} global_name={self.global_name!r} bot={self.bot}>'
+        return f"<User id={self.id} name={self.name!r} discriminator={self.discriminator!r} bot={self.bot}>"
+
+    def __del__(self) -> None:
+        try:
+            if self._stored:
+                self._state.deref_user(self.id)
+        except Exception:
+            pass
+
+    @classmethod
+    def _copy(cls, user: User):
+        self = super()._copy(user)
+        self._stored = False
+        return self
 
     async def _get_channel(self) -> DMChannel:
         ch = await self.create_dm()
